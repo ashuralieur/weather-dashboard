@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aether — Weather Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════
+       AMBIENT BACKGROUND — orbs shift color per weather
+  ════════════════════════════════════════════════════════ -->
+  <div class="bg-canvas" id="bgCanvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="noise-overlay"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TOAST NOTIFICATION
+  ════════════════════════════════════════════════════════ -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">⚠</span>
+    <span class="toast-msg" id="toastMsg">City not found</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN APP WRAPPER
+  ════════════════════════════════════════════════════════ -->
+  <div class="app-wrapper">
+
+    <!-- ─── HEADER ─── -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">⬡</span>
+        <span class="brand-name">Aether</span>
+      </div>
+
+      <!-- Animated Search Bar -->
+      <div class="search-container" id="searchContainer">
+        <div class="search-bar" id="searchBar">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search any city…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="search-btn" id="searchBtn" aria-label="Search">
+            <span>GO</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-meta">
+        <span id="currentDate" class="current-date"></span>
+      </div>
+    </header>
+
+    <!-- ─── LOADING SKELETON ─── -->
+    <div class="skeleton-screen" id="skeletonScreen">
+      <div class="sk-hero">
+        <div class="sk-icon"></div>
+        <div class="sk-lines">
+          <div class="sk-line sk-line--lg"></div>
+          <div class="sk-line sk-line--md"></div>
+          <div class="sk-line sk-line--sm"></div>
+        </div>
+      </div>
+      <div class="sk-cards">
+        <div class="sk-card"></div>
+        <div class="sk-card"></div>
+        <div class="sk-card"></div>
+        <div class="sk-card"></div>
+      </div>
+      <div class="sk-chart"></div>
+    </div>
+
+    <!-- ─── MAIN DASHBOARD (hidden until data loads) ─── -->
+    <main class="dashboard" id="dashboard" style="display:none">
+
+      <!-- ══ HERO SECTION ══ -->
+      <section class="hero-section">
+
+        <!-- Current weather left panel -->
+        <div class="current-weather glass-card" id="currentWeatherCard">
+          <div class="weather-location">
+            <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <h2 id="cityName" class="city-name">—</h2>
+            <span id="countryCode" class="country-code"></span>
+          </div>
+
+          <!-- Animated SVG Weather Icon -->
+          <div class="weather-icon-container" id="weatherIconContainer">
+            <!-- JS injects SVG icon here -->
+          </div>
+
+          <div class="temp-display">
+            <span id="temperature" class="temp-number">—</span>
+            <span class="temp-unit">°C</span>
+          </div>
+          <p id="weatherDescription" class="weather-desc">—</p>
+
+          <div class="feels-like">
+            <span class="feels-label">FEELS LIKE</span>
+            <span id="feelsLike" class="feels-value">—°C</span>
+          </div>
+        </div>
+
+        <!-- Stats grid right panel -->
+        <div class="stats-grid">
+
+          <div class="stat-card glass-card" style="--delay: 0.05s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">HUMIDITY</span>
+              <span class="stat-value" id="humidity">—%</span>
+            </div>
+            <div class="stat-bar-wrap">
+              <div class="stat-bar"><div class="stat-bar-fill" id="humidityBar"></div></div>
+            </div>
+          </div>
+
+          <div class="stat-card glass-card" style="--delay: 0.1s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">WIND</span>
+              <span class="stat-value" id="windSpeed">— km/h</span>
+            </div>
+            <div class="stat-badge" id="windDir">—</div>
+          </div>
+
+          <div class="stat-card glass-card" style="--delay: 0.15s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2v1M12 21v1M4.22 4.22l.7.7M18.36 18.36l.7.7M2 12h1M21 12h1M4.22 19.78l.7-.7M18.36 5.64l.7-.7"/>
+                <circle cx="12" cy="12" r="4"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">UV INDEX</span>
+              <span class="stat-value" id="uvIndex">—</span>
+            </div>
+            <div class="uv-label" id="uvLabel">—</div>
+          </div>
+
+          <div class="stat-card glass-card" style="--delay: 0.2s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 12h2M20 12h2M12 2v2M12 20v2"/>
+                <circle cx="12" cy="12" r="5"/>
+                <path d="m6.34 6.34 1.42 1.42M16.24 16.24l1.42 1.42M6.34 17.66l1.42-1.42M16.24 7.76l1.42-1.42"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">PRESSURE</span>
+              <span class="stat-value" id="pressure">— hPa</span>
+            </div>
+            <div class="pressure-indicator" id="pressureIndicator"></div>
+          </div>
+
+          <div class="stat-card glass-card" style="--delay: 0.25s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">SUNRISE</span>
+              <span class="stat-value" id="sunrise">—</span>
+            </div>
+          </div>
+
+          <div class="stat-card glass-card" style="--delay: 0.3s">
+            <div class="stat-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 18a5 5 0 0 0-10 0"/>
+                <line x1="12" y1="2" x2="12" y2="9"/>
+                <line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/>
+                <line x1="1" y1="18" x2="3" y2="18"/>
+                <line x1="21" y1="18" x2="23" y2="18"/>
+                <line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">SUNSET</span>
+              <span class="stat-value" id="sunset">—</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ══ CHARTS SECTION ══ -->
+      <section class="charts-section">
+        <div class="chart-card glass-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Temperature Trend</h3>
+            <span class="chart-subtitle">Next 24 hours</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="tempChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card glass-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Humidity Levels</h3>
+            <span class="chart-subtitle">Next 24 hours</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="humidityChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ 5-DAY FORECAST STRIP ══ -->
+      <section class="forecast-section">
+        <h3 class="section-title">5-Day Outlook</h3>
+        <div class="forecast-strip" id="forecastStrip">
+          <!-- JS renders forecast cards here -->
+        </div>
+      </section>
+
+      <!-- ══ HOURLY STRIP ══ -->
+      <section class="hourly-section">
+        <h3 class="section-title">Hourly Breakdown</h3>
+        <div class="hourly-strip" id="hourlyStrip">
+          <!-- JS renders hourly cards here -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ─── WELCOME / EMPTY STATE ─── -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <!-- Large animated SVG star/orb -->
+        <svg viewBox="0 0 200 200" class="empty-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="orbGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="100" cy="100" r="60" fill="url(#orbGrad)" class="pulse-circle"/>
+          <circle cx="100" cy="100" r="40" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.5" class="spin-ring"/>
+          <circle cx="100" cy="40" r="4" fill="var(--accent)" class="orbit-dot"/>
+          <text x="100" y="107" text-anchor="middle" font-size="36" fill="var(--accent)" font-family="sans-serif">⬡</text>
+        </svg>
+      </div>
+      <h2 class="empty-title">Where in the world?</h2>
+      <p class="empty-sub">Search a city to reveal its atmosphere</p>
+    </div>
+
+    <footer class="app-footer">
+      <span>Aether Weather Intelligence</span>
+      <span class="footer-sep">·</span>
+      <span>Powered by OpenWeatherMap</span>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
